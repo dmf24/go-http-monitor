@@ -56,7 +56,7 @@ type JsonOutput struct {
 func addEntry(results []CheckOutput, url string, active bool, elapsed time.Duration) []CheckOutput {
 	check := &CheckOutput{
 		Resource: url,
-		Status:   strconv.FormatBool(!active),
+		Status:   strconv.FormatBool(active),
 		Elapsed:  elapsed.String(),
 	}
 	results = append(results, *check)
@@ -68,7 +68,7 @@ func main() {
 	filenamePtr := flag.String("file", "monitor.yml", "Monitoring file")
 	flag.Parse()
 
-	hostUnreachable := false
+	hostReachable := true
 	file, err := os.Open(*filenamePtr)
 	if err != nil {
 		log.Fatal(err)
@@ -106,9 +106,9 @@ func main() {
 			if err != nil {
 				tmpString = "[NOK] " + plugin.URL + "\n"
 				fmt.Printf(ErrorColor, tmpString)
-				hostUnreachable = true
+				hostReachable = false
 
-				results.Results = addEntry(results.Results, plugin.URL, hostUnreachable, elapsed)
+				results.Results = addEntry(results.Results, plugin.URL, hostReachable, elapsed)
 				continue
 			}
 
@@ -124,9 +124,9 @@ func main() {
 			if plugin.StatusCode != nil && *plugin.StatusCode != resp.StatusCode {
 				tmpString = "[NOK] " + plugin.URL + "\n"
 				fmt.Printf(ErrorColor, tmpString)
-				hostUnreachable = true
+				hostReachable = false
 
-				results.Results = addEntry(results.Results, plugin.URL, hostUnreachable, elapsed)
+				results.Results = addEntry(results.Results, plugin.URL, hostReachable, elapsed)
 				continue
 			}
 
@@ -134,9 +134,9 @@ func main() {
 			if plugin.Match != nil && !strings.Contains(string(content), *plugin.Match) {
 				tmpString = "[NOK] " + plugin.URL + "\n"
 				fmt.Printf(ErrorColor, tmpString)
-				hostUnreachable = true
+				hostReachable = false
 
-				results.Results = addEntry(results.Results, plugin.URL, hostUnreachable, elapsed)
+				results.Results = addEntry(results.Results, plugin.URL, hostReachable, elapsed)
 				continue
 			}
 
@@ -147,9 +147,9 @@ func main() {
 					responseTime := strconv.Itoa(*plugin.ResponseTime)
 					tmpString = "[NOK]  " + plugin.URL + ", Elapsed time: " + elapsed.String() + " instead of " + responseTime + "\n"
 					fmt.Printf(ErrorColor, tmpString)
-					hostUnreachable = true
+					hostReachable = false
 
-					results.Results = addEntry(results.Results, plugin.URL, hostUnreachable, elapsed)
+					results.Results = addEntry(results.Results, plugin.URL, hostReachable, elapsed)
 					continue
 				}
 			}
@@ -165,10 +165,10 @@ func main() {
 			// fmt.Println("Foobar?")
 			elapsed := t.Sub(start)
 			if err != nil { // error on tcp connect
-				hostUnreachable = true
+				hostReachable = false
 				tmpString = "[NOK] TCP:" + servAddr + "\n"
 				fmt.Printf(ErrorColor, tmpString)
-				results.Results = addEntry(results.Results, servAddr, hostUnreachable, elapsed)
+				results.Results = addEntry(results.Results, servAddr, hostReachable, elapsed)
 				continue
 			} else if plugin.ResponseTime != nil { // error on connection
 				responseTimeDuration := time.Duration(*plugin.ResponseTime) * time.Millisecond
@@ -176,8 +176,8 @@ func main() {
 					responseTime := strconv.Itoa(*plugin.ResponseTime)
 					tmpString = "[NOK] TCP:" + servAddr + ", Elapsed time: " + elapsed.String() + " instead of " + responseTime + "\n"
 					fmt.Printf(ErrorColor, tmpString)
-					hostUnreachable = true
-					results.Results = addEntry(results.Results, plugin.URL, hostUnreachable, elapsed)
+					hostReachable = false
+					results.Results = addEntry(results.Results, plugin.URL, hostReachable, elapsed)
 					continue
 				}
 			}
@@ -191,7 +191,7 @@ func main() {
 	_ = ioutil.WriteFile("output.json", jsonFile, 0644)
 
 	// if any host is unreachable, exit(1) to fail execution
-	if hostUnreachable {
+	if !hostReachable {
 		os.Exit(1)
 	}
 	os.Exit(0)
